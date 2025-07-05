@@ -42,10 +42,20 @@ export type NorthflankConfig = {
   persistentVolumeStorage?: number;
 };
 
+export type CloudflareConfig = {
+  apiToken: string;
+  accountId: string;
+  image?: string;
+  serviceId?: string;
+  environmentName?: string;
+  scriptName?: string;
+};
+
 export type EnvironmentConfig = {
   e2b?: E2BConfig;
   daytona?: DaytonaConfig;
   northflank?: NorthflankConfig;
+  cloudflare?: CloudflareConfig;
 };
 
 export type GithubConfig = {
@@ -265,16 +275,21 @@ export interface SandboxInstance {
 }
 
 export interface SandboxConfig {
-  type: "e2b" | "daytona" | "northflank";
-  apiKey: string;
+  type: "e2b" | "daytona" | "northflank" | "cloudflare";
+  apiKey?: string;
   templateId?: string; // for E2B
-  image?: string; // for Daytona
+  image?: string; // for Daytona/Cloudflare
   serverUrl?: string; // for Daytona
   projectId?: string; // for Northflank
   billingPlan?: string; // for Northflank
   persistentVolume?: string; // for Northflank
   persistentVolumeStorage?: number; // for Northflank
-  workingDirectory?: string; // for Nortflank
+  workingDirectory?: string; // for Northflank
+  apiToken?: string; // for Cloudflare
+  accountId?: string; // for Cloudflare
+  serviceId?: string; // for Cloudflare
+  environmentName?: string; // for Cloudflare
+  scriptName?: string; // for Cloudflare
 }
 
 export interface SandboxProvider {

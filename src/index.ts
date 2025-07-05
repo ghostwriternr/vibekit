@@ -56,3 +56,22 @@ export type {
 // Telemetry exports
 export { TelemetryService } from "./services/telemetry";
 export type { TelemetryData } from "./services/telemetry";
+
+// Sandbox exports
+export {
+  createSandboxProvider,
+  createSandboxConfigFromEnvironment,
+  E2BSandboxProvider,
+  DaytonaSandboxProvider,
+  NorthflankSandboxProvider,
+  CloudflareSandboxProvider,
+} from "./services/sandbox";
+export type {
+  SandboxConfig,
+  SandboxInstance,
+  SandboxProvider,
+  SandboxCommands,
+  SandboxCommandOptions,
+  SandboxExecutionResult,
+  CloudflareConfig,
+} from "./types";

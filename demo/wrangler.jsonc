@@ -1,0 +1,37 @@
+{
+  "name": "vibekit-containers-v2",
+  "compatibility_date": "2023-05-18",
+  "main": "src/index.ts",
+  "compatibility_flags": ["nodejs_compat"],
+  "containers": [
+    {
+      "class_name": "VibeKitContainerV2",
+      "image": "./Dockerfile",
+      "max_instances": 5
+    }
+  ],
+  "durable_objects": {
+    "bindings": [
+      {
+        "name": "VibeKitContainerV2",
+        "class_name": "VibeKitContainerV2"
+      }
+    ]
+  },
+  "migrations": [
+    {
+      "tag": "v1",
+      "new_sqlite_classes": [
+        "VibeKitContainerV2"
+      ]
+    }
+  ],
+  "env": {
+    "production": {
+      "vars": {
+        "NODE_ENV": "production",
+        "MESSAGE": "Hello from VibeKit Cloudflare Container!"
+      }
+    }
+  }
+}

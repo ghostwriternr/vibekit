@@ -81,7 +81,7 @@ export class VibeKit {
         githubToken: setup.github?.token,
         repoUrl: setup.github?.repository,
         // Keep backward compatibility for E2B-specific configs
-        e2bApiKey: sandboxConfig.type === "e2b" ? sandboxConfig.apiKey : "",
+        e2bApiKey: sandboxConfig.type === "e2b" ? (sandboxConfig.apiKey || "") : "",
         e2bTemplateId: sandboxConfig.templateId,
         model: setup.agent.model.name,
         sandboxId: setup.sessionId,
@@ -100,7 +100,7 @@ export class VibeKit {
         githubToken: setup.github?.token,
         repoUrl: setup.github?.repository,
         // Keep backward compatibility for E2B-specific configs
-        e2bApiKey: sandboxConfig.type === "e2b" ? sandboxConfig.apiKey : "",
+        e2bApiKey: sandboxConfig.type === "e2b" ? (sandboxConfig.apiKey || "") : "",
         e2bTemplateId: sandboxConfig.templateId,
         model: setup.agent.model.name,
         sandboxId: setup.sessionId,
@@ -119,7 +119,7 @@ export class VibeKit {
         githubToken: setup.github?.token,
         repoUrl: setup.github?.repository,
         // Keep backward compatibility for E2B-specific configs
-        e2bApiKey: sandboxConfig.type === "e2b" ? sandboxConfig.apiKey : "",
+        e2bApiKey: sandboxConfig.type === "e2b" ? (sandboxConfig.apiKey || "") : "",
         e2bTemplateId: sandboxConfig.templateId,
         model: setup.agent.model.name,
         sandboxId: setup.sessionId,
@@ -137,7 +137,7 @@ export class VibeKit {
         provider: setup.agent.model.provider,
         githubToken: setup.github?.token,
         repoUrl: setup.github?.repository,
-        e2bApiKey: sandboxConfig.type === "e2b" ? sandboxConfig.apiKey : "",
+        e2bApiKey: sandboxConfig.type === "e2b" ? (sandboxConfig.apiKey || "") : "",
         e2bTemplateId: sandboxConfig.templateId,
         model: setup.agent.model.name,
         sandboxId: setup.sessionId,

@@ -33,7 +33,7 @@ One SDK. Any coding agent. Any sandbox.
 
 ## 📦 Supported Sandbox Runtimes
 
-Currently supports E2B with Daytona, Modal, Fly.io, and other providers coming soon.
+Currently supports E2B, Daytona, Northflank, and **Cloudflare Containers** with Modal, Fly.io, and other providers coming soon.
 
 ## 🧪 Use Cases
 

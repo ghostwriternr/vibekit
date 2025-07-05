@@ -1,0 +1,39 @@
+{
+  "name": "vibekit-cloudflare-containers-demo",
+  "version": "1.0.0",
+  "description": "Demo showcasing Cloudflare Containers integration with VibeKit",
+  "main": "src/index.ts",
+  "type": "module",
+  "scripts": {
+    "dev": "npx wrangler dev",
+    "build": "tsc",
+    "deploy": "npx wrangler deploy",
+    "test": "node test-production.js"
+  },
+  "keywords": [
+    "vibekit",
+    "cloudflare",
+    "containers",
+    "ai",
+    "coding-agents",
+    "claude",
+    "sandbox"
+  ],
+  "dependencies": {
+    "@cloudflare/containers": "^0.0.19",
+    "@cloudflare/workers-types": "^4.20250705.0",
+    "@vibe-kit/sdk": "file:../",
+    "dotenv": "^16.0.0",
+    "hono": "^4.8.4"
+  },
+  "devDependencies": {
+    "@types/node": "^18.19.115",
+    "typescript": "^5.8.3",
+    "wrangler": "^4.23.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "author": "Superagent Technologies Inc.",
+  "license": "MIT"
+}
