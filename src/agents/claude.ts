@@ -6,7 +6,6 @@ import {
   ClaudeResponse,
   ClaudeStreamCallbacks,
   Conversation,
-  ModelProvider,
 } from "../types";
 
 export class ClaudeAgent extends BaseAgent {
@@ -15,9 +14,6 @@ export class ClaudeAgent extends BaseAgent {
 
   private escapePrompt(prompt: string): string {
     // Escape backticks and other special characters
-    if (!prompt || typeof prompt !== 'string') {
-      return '';
-    }
     return prompt.replace(/[`"$\\]/g, "\\$&");
   }
 
