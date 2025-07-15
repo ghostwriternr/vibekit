@@ -8,7 +8,7 @@ import { TextShimmer } from "../ui/text-shimmer";
 import { ListTodo } from "lucide-react";
 import { useState } from "react";
 import { runAgentAction } from "@/app/actions/vibekit";
-import { templates } from "@/config";
+import { useSession } from "next-auth/react";
 
 interface Todo {
   id: string;
@@ -101,6 +101,7 @@ function RoundProgress({
 }
 
 export default function Chat({ session }: { session: Doc<"sessions"> }) {
+  const { data: authSession } = useSession();
   const addMessage = useMutation(api.messages.add);
   const messages = useQuery(api.messages.getBySession, {
     sessionId: session._id,
@@ -108,17 +109,19 @@ export default function Chat({ session }: { session: Doc<"sessions"> }) {
   const [todosExpanded, setTodosExpanded] = useState(false);
 
   const handleSubmit = async (message: string) => {
-    const template = templates.find((t) => t.id === session.templateId);
-
-    if (!template) return;
-
     await addMessage({
       sessionId: session._id as Id<"sessions">,
       role: "user",
       content: message,
     });
 
-    await runAgentAction(session.sessionId!, session._id, message, template);
+    await runAgentAction({
+      sessionId: session.sessionId!,
+      id: session._id,
+      message,
+      repository: session.repository,
+      token: authSession?.accessToken as string,
+    });
   };
 
   const toggleTodos = () => {

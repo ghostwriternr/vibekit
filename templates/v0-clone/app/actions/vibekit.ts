@@ -8,12 +8,21 @@ import { auth } from "@/lib/auth";
 import { Id } from "@/convex/_generated/dataModel";
 import { Template } from "@/config";
 
-export async function runAgentAction(
-  sessionId: string,
-  id: string,
-  message: string,
-  template: Template
-) {
+export async function runAgentAction({
+  sessionId,
+  id,
+  message,
+  template,
+  repository,
+  token,
+}: {
+  sessionId: string;
+  id: string;
+  message: string;
+  template?: Template;
+  token: string;
+  repository?: string;
+}) {
   await inngest.send({
     name: "vibe0/run.agent",
     data: {
@@ -21,6 +30,8 @@ export async function runAgentAction(
       id,
       message,
       template,
+      repository,
+      token,
     },
   });
 }

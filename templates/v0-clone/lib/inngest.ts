@@ -49,7 +49,17 @@ export const runAgent = inngest.createFunction(
   { id: "run-agent", retries: 0, concurrency: 100 },
   { event: "vibe0/run.agent" },
   async ({ event, step }) => {
-    const { sessionId, id, message, template } = event.data;
+    const {
+      sessionId,
+      id,
+      message,
+      template,
+    }: {
+      sessionId: string;
+      id: Id<"sessions">;
+      message: string;
+      template: Template;
+    } = event.data;
 
     const config: VibeKitConfig = {
       agent: {
@@ -70,10 +80,6 @@ export const runAgent = inngest.createFunction(
     const result = await step.run("generate code", async () => {
       const vibekit = new VibeKit(config);
 
-      if (sessionId) {
-        await vibekit.setSession(sessionId);
-      }
-
       await fetchMutation(api.sessions.update, {
         id,
         status: "CUSTOM",
@@ -81,16 +87,17 @@ export const runAgent = inngest.createFunction(
       });
 
       const prompt =
-        template.systemPrompt +
-        "Do not run tests or restart the dev server.\n" +
-        `Follow the users intructions:\n\n# INSTRUCTIONS\n${message}`;
+        template?.systemPrompt ||
+        "# GOAL\nYou are an helpful assistant that is tasked with helping the user build a NextJS app.\n" +
+          "- The NextJS dev server is running on port 3000.\n" +
+          +"Do not run tests or restart the dev server.\n" +
+          `Follow the users intructions:\n\n# INSTRUCTIONS\n${message}`;
 
       const response = await vibekit.generateCode({
         prompt: prompt,
         mode: "code",
         callbacks: {
           async onUpdate(message) {
-            console.log("onUpdate", message);
             const data = JSON.parse(message);
 
             if (data.type === "user") {
@@ -244,10 +251,10 @@ export const createSession = inngest.createFunction(
         northflank: {
           apiKey: process.env.NORTHFLANK_API_KEY!,
           projectId: process.env.NORTHFLANK_PROJECT_ID!,
-          image: template.image ? template.image : undefined,
+          image: template?.image,
         },
       },
-      secrets: template.secrets,
+      secrets: template?.secrets,
     };
 
     const vibekit = new VibeKit(config);
@@ -308,46 +315,76 @@ export const createSession = inngest.createFunction(
           id,
           repository: repository.full_name,
         });
+
+        for await (const command of template.startCommands) {
+          await fetchMutation(api.sessions.update, {
+            id,
+            status: command.status,
+            sessionId: sandboxId,
+          });
+
+          await vibekit.executeCommand(command.command, {
+            background: command.background,
+            callbacks: {
+              onUpdate(message) {
+                console.log(message);
+              },
+            },
+          });
+        }
+
+        const host = await vibekit.getHost(3000);
+
+        return {
+          sandboxId: sandboxId,
+          tunnelUrl: `https://${host}`,
+        };
       } else {
         const { sandboxId: _sandboxId } = await vibekit.executeCommand(
-          `git clone https://github.com/${repository}.git`
+          `git clone https://${token}@github.com/${repository}.git .`
         );
 
         sandboxId = _sandboxId;
-      }
 
-      await vibekit.executeCommand(`ls -la`, {
-        callbacks: {
-          onUpdate(message) {
-            console.log(message);
-          },
-        },
-      });
-
-      for await (const command of template.startCommands) {
-        console.log("COMMAND", command);
         await fetchMutation(api.sessions.update, {
           id,
-          status: command.status,
-          sessionId: sandboxId,
+          status: "INSTALLING_DEPENDENCIES",
         });
 
-        await vibekit.executeCommand(command.command, {
-          background: command.background,
+        await vibekit.executeCommand("npm i", {
           callbacks: {
             onUpdate(message) {
               console.log(message);
             },
           },
         });
+
+        await fetchMutation(api.sessions.update, {
+          id,
+          status: "STARTING_DEV_SERVER",
+        });
+
+        await vibekit.executeCommand("npm run dev", {
+          background: true,
+          callbacks: {
+            onUpdate(message) {
+              console.log(message);
+            },
+          },
+        });
+
+        await fetchMutation(api.sessions.update, {
+          id,
+          status: "CREATING_TUNNEL",
+        });
+
+        const host = await vibekit.getHost(3000);
+
+        return {
+          sandboxId: sandboxId,
+          tunnelUrl: `https://${host}`,
+        };
       }
-
-      const host = await vibekit.getHost(3000);
-
-      return {
-        sandboxId: sandboxId,
-        tunnelUrl: `https://${host}`,
-      };
     });
 
     await step.sleep("wait-with-ms", 2 * 1000);
@@ -362,7 +399,14 @@ export const createSession = inngest.createFunction(
 
     if (message) {
       await step.run("run agent", async () => {
-        await runAgentAction(data.sandboxId, id, message, template);
+        await runAgentAction({
+          sessionId: data.sandboxId,
+          id,
+          message,
+          template,
+          repository,
+          token,
+        });
       });
     }
 

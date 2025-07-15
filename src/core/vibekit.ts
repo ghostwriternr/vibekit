@@ -400,6 +400,34 @@ export class VibeKit {
     return this.agent.getHost(port);
   }
 
+  /**
+   * Set the GitHub token for repository operations.
+   *
+   * @param token - The GitHub token to set
+   */
+  setGithubToken(token: string): void {
+    this.agent.setGithubToken(token);
+    if (this.setup.github) {
+      this.setup.github.token = token;
+    } else {
+      this.setup.github = { token, repository: "" };
+    }
+  }
+
+  /**
+   * Set the GitHub repository URL for operations.
+   *
+   * @param repoUrl - The repository URL (e.g., 'owner/repo')
+   */
+  setGithubRepository(repoUrl: string): void {
+    this.agent.setGithubRepository(repoUrl);
+    if (this.setup.github) {
+      this.setup.github.repository = repoUrl;
+    } else {
+      this.setup.github = { token: "", repository: repoUrl };
+    }
+  }
+
   async executeCommand(
     command: string,
     options: {

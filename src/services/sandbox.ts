@@ -1,5 +1,5 @@
+import { Daytona, DaytonaConfig, Sandbox } from "@daytonaio/sdk";
 import { Sandbox as E2BSandbox } from "@e2b/code-interpreter";
-import { Daytona, DaytonaConfig, Sandbox, Workspace } from "@daytonaio/sdk";
 import Cloudflare from "cloudflare";
 
 import {
@@ -91,7 +91,7 @@ export class E2BSandboxProvider implements SandboxProvider {
     const sandbox = await E2BSandbox.create(templateId, {
       envs,
       apiKey: config.apiKey,
-      timeoutMs: 86400000, // 24 hours in milliseconds
+      timeoutMs: 3600000, // 1 hour in milliseconds
     });
     return new E2BSandboxInstance(sandbox);
   }
@@ -197,7 +197,7 @@ class DaytonaSandboxInstance implements SandboxInstance {
 
   async kill(): Promise<void> {
     if (this.daytona && this.workspace) {
-      await this.daytona.remove(this.workspace);
+      await this.daytona.delete(this.workspace);
     }
   }
 

@@ -39,7 +39,7 @@ export default function Preview({ session }: { session?: Doc<"sessions"> }) {
     };
 
     checkUrlAvailability(); // Initial check
-    intervalRef.current = setInterval(checkUrlAvailability, 1000);
+    intervalRef.current = setInterval(checkUrlAvailability, 2000);
 
     return () => {
       if (intervalRef.current) clearInterval(intervalRef.current);

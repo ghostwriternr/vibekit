@@ -21,7 +21,9 @@ class StreamingBuffer {
   }
 
   append(chunk: string): void {
-    this.buffer += chunk;
+    // Filter out null bytes that can corrupt JSON parsing
+    const cleanChunk = chunk.replace(/\0/g, '');
+    this.buffer += cleanChunk;
     this.processBuffer();
   }
 
@@ -242,6 +244,14 @@ export abstract class BaseAgent {
     this.config.sandboxId = sessionId;
   }
 
+  public setGithubToken(token: string): void {
+    this.config.githubToken = token;
+  }
+
+  public setGithubRepository(repoUrl: string): void {
+    this.config.repoUrl = repoUrl;
+  }
+
   public async getHost(port: number): Promise<string> {
     const sbx = await this.getSandbox();
     return await sbx.getHost(port);
@@ -270,10 +280,13 @@ export abstract class BaseAgent {
         );
       }
 
+      console.log("RUN IT");
+
       // Ensure working directory exists first
       await sbx.commands.run(this.getMkdirCommand(this.WORKING_DIR), {
         timeoutMs: 30000,
         background: false,
+        onStdout: (data) => console.log(data),
       });
 
       // For executeCommand, always use working directory directly
@@ -353,16 +366,12 @@ export abstract class BaseAgent {
             `cd ${this.WORKING_DIR} && git clone https://x-access-token:${this.config.githubToken}@github.com/${this.config.repoUrl}.git .`,
             { timeoutMs: 3600000, background: background || false }
           );
-
-          await sbx.commands.run(
-            `cd ${this.WORKING_DIR} && git config user.name "github-actions[bot]" && git config user.email "github-actions[bot]@users.noreply.github.com"`,
-            { timeoutMs: 60000, background: background || false }
-          );
-        } else {
-          callbacks?.onUpdate?.(
-            `{"type": "info", "output": "No GitHub configuration provided - running in sandbox-only mode"}`
-          );
         }
+
+        await sbx.commands.run(
+          `cd ${this.WORKING_DIR} && git config user.name "github-actions[bot]" && git config user.email "github-actions[bot]@users.noreply.github.com"`,
+          { timeoutMs: 60000, background: background || false }
+        );
       } else if (this.config.sandboxId) {
         callbacks?.onUpdate?.(
           `{"type": "start", "sandbox_id": "${this.config.sandboxId}"}`
@@ -466,13 +475,6 @@ export abstract class BaseAgent {
       );
     }
 
-    // Validate GitHub configuration is provided
-    if (!this.config.githubToken || !this.config.repoUrl) {
-      throw new Error(
-        "GitHub configuration is required for pushing to branches. Please provide githubToken and repoUrl in your configuration."
-      );
-    }
-
     const sbx = await this.getSandbox();
 
     // Check git status for changes
@@ -549,14 +551,14 @@ export abstract class BaseAgent {
     labelOptions?: LabelOptions,
     branchPrefix?: string
   ): Promise<PullRequestResult> {
-    // Validate GitHub configuration is provided
-    if (!this.config.githubToken || !this.config.repoUrl) {
+    const { githubToken, repoUrl } = this.config;
+
+    if (!githubToken || !repoUrl) {
       throw new Error(
         "GitHub configuration is required for creating pull requests. Please provide githubToken and repoUrl in your configuration."
       );
     }
 
-    const { githubToken, repoUrl } = this.config;
     const commandConfig = this.getCommandConfig("", "code");
     const sbx = await this.getSandbox();
     // Get the current branch (base branch) BEFORE creating a new branch

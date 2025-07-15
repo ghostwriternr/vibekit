@@ -19,6 +19,14 @@ VibeKit is an SDK for running powerful coding agents like **Claude Code**, **Ope
 
 One SDK. Any coding agent. Any sandbox.
 
+## 🚀 Quick Start
+
+```bash
+npx @vibe-kit/sdk init
+# or after global install
+vibekit init
+```
+
 ## ⚡️ Features
 
 🧠 Drop-in SDK for Claude Code, OpenAI Codex, Gemini CLI, and SST Opencode 

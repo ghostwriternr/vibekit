@@ -11,10 +11,7 @@ export async function POST(req: NextRequest) {
   console.log("Checking URL", url);
 
   try {
-    const response = await fetch(url, {
-      // Add timeout to prevent hanging
-      signal: AbortSignal.timeout(10000), // 10 second timeout
-    });
+    const response = await fetch(url);
     console.log("Response", response.status);
     const available = response.status >= 200 && response.status < 400;
     return NextResponse.json({ available });
