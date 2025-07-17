@@ -647,9 +647,224 @@ export class NorthflankSandboxProvider implements SandboxProvider {
   }
 }
 
+// Cloudflare implementation
+export class CloudflareSandboxInstance implements SandboxInstance {
+  constructor(
+    private containerStub: any, // Durable Object stub
+    public sandboxId: string,
+    private workingDirectory: string
+  ) {}
+
+  get commands(): SandboxCommands {
+    return {
+      run: async (command: string, options?: SandboxCommandOptions) => {
+        try {
+          // Call the Durable Object's execute method
+          const response = await this.containerStub.fetch(
+            new Request(`http://container/execute`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({
+                command,
+                background: options?.background,
+                timeoutMs: options?.timeoutMs,
+                workingDirectory: this.workingDirectory,
+              }),
+            })
+          );
+
+          if (!response.ok) {
+            const error = await response.text();
+            throw new Error(`Command execution failed: ${error}`);
+          }
+
+          // Handle streaming output
+          if (options?.onStdout || options?.onStderr) {
+            const reader = response.body?.getReader();
+            const decoder = new TextDecoder();
+            
+            let stdout = '';
+            let stderr = '';
+            
+            while (reader) {
+              const { done, value } = await reader.read();
+              if (done) break;
+              
+              const chunk = decoder.decode(value);
+              const lines = chunk.split('\n');
+              
+              for (const line of lines) {
+                if (!line) continue;
+                
+                try {
+                  const data = JSON.parse(line);
+                  if (data.type === 'stdout' && data.content) {
+                    stdout += data.content;
+                    options.onStdout?.(data.content);
+                  } else if (data.type === 'stderr' && data.content) {
+                    stderr += data.content;
+                    options.onStderr?.(data.content);
+                  } else if (data.type === 'exit') {
+                    return {
+                      exitCode: data.exitCode || 0,
+                      stdout,
+                      stderr,
+                    };
+                  }
+                } catch (e) {
+                  // Handle non-JSON lines
+                  stdout += line + '\n';
+                  options.onStdout?.(line + '\n');
+                }
+              }
+            }
+            
+            return { exitCode: 0, stdout, stderr };
+          } else {
+            // Non-streaming response
+            const result = await response.json();
+            return {
+              exitCode: result.exitCode || 0,
+              stdout: result.stdout || '',
+              stderr: result.stderr || '',
+            };
+          }
+        } catch (error) {
+          throw new Error(
+            `Failed to execute command: ${
+              error instanceof Error ? error.message : String(error)
+            }`
+          );
+        }
+      },
+    };
+  }
+
+  async kill(): Promise<void> {
+    await this.containerStub.fetch(
+      new Request(`http://container/kill`, { method: 'POST' })
+    );
+  }
+
+  async pause(): Promise<void> {
+    await this.containerStub.fetch(
+      new Request(`http://container/pause`, { method: 'POST' })
+    );
+  }
+
+  async getHost(port: number): Promise<string> {
+    const response = await this.containerStub.fetch(
+      new Request(`http://container/port/${port}`)
+    );
+    if (!response.ok) {
+      throw new Error(`Failed to get host for port ${port}`);
+    }
+    const data = await response.json();
+    return data.url;
+  }
+}
+
+export class CloudflareSandboxProvider implements SandboxProvider {
+  async create(
+    config: SandboxConfig,
+    envs?: Record<string, string>,
+    agentType?: AgentType
+  ): Promise<SandboxInstance> {
+    if (!config.binding) {
+      throw new Error("Cloudflare sandbox configuration missing binding name");
+    }
+
+    // Access the Durable Object binding from the Worker environment
+    // This assumes the provider is running within a Cloudflare Worker
+    const env = (globalThis as any).env;
+    if (!env || !env[config.binding]) {
+      throw new Error(
+        `Cloudflare Durable Object binding "${config.binding}" not found. ` +
+        `Make sure you're running within a Cloudflare Worker and the binding is configured in wrangler.toml`
+      );
+    }
+
+    // Generate a unique ID for this container instance
+    const id = env[config.binding].idFromName(
+      `vibekit-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
+    );
+    
+    // Get the Durable Object stub
+    const stub = env[config.binding].get(id);
+
+    // Initialize the container with configuration
+    const initResponse = await stub.fetch(
+      new Request(`http://container/init`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          image: config.image || getDockerImageFromAgentType(agentType),
+          envVars: envs,
+          instanceType: config.instanceType || 'dev',
+          sleepAfter: config.sleepAfter || '10m',
+          namespace: config.namespace,
+          workingDirectory: config.workingDirectory || '/var/vibe0',
+        }),
+      })
+    );
+
+    if (!initResponse.ok) {
+      const error = await initResponse.text();
+      throw new Error(`Failed to initialize container: ${error}`);
+    }
+
+    const { sandboxId } = await initResponse.json();
+
+    return new CloudflareSandboxInstance(
+      stub,
+      sandboxId,
+      config.workingDirectory || '/var/vibe0'
+    );
+  }
+
+  async resume(
+    sandboxId: string,
+    config: SandboxConfig
+  ): Promise<SandboxInstance> {
+    if (!config.binding) {
+      throw new Error("Cloudflare sandbox configuration missing binding name");
+    }
+
+    const env = (globalThis as any).env;
+    if (!env || !env[config.binding]) {
+      throw new Error(
+        `Cloudflare Durable Object binding "${config.binding}" not found`
+      );
+    }
+
+    // Extract the Durable Object ID from the sandboxId
+    const id = env[config.binding].idFromString(sandboxId);
+    const stub = env[config.binding].get(id);
+
+    // Check if the container is still active
+    const statusResponse = await stub.fetch(
+      new Request(`http://container/status`)
+    );
+
+    if (!statusResponse.ok) {
+      throw new Error(`Container ${sandboxId} not found or no longer active`);
+    }
+
+    return new CloudflareSandboxInstance(
+      stub,
+      sandboxId,
+      config.workingDirectory || '/var/vibe0'
+    );
+  }
+}
+
 // Factory function to create appropriate sandbox provider
 export function createSandboxProvider(
-  type: "e2b" | "daytona" | "northflank"
+  type: "e2b" | "daytona" | "northflank" | "cloudflare"
 ): SandboxProvider {
   switch (type) {
     case "e2b":
@@ -658,6 +873,8 @@ export function createSandboxProvider(
       return new DaytonaSandboxProvider();
     case "northflank":
       return new NorthflankSandboxProvider();
+    case "cloudflare":
+      return new CloudflareSandboxProvider();
     default:
       throw new Error(`Unsupported sandbox type: ${type}`);
   }
@@ -670,6 +887,22 @@ export function createSandboxConfigFromEnvironment(
   workingDirectory?: string
 ): SandboxConfig {
   const defaultImage = getDockerImageFromAgentType(agentType);
+  
+  // Try Cloudflare first if configured
+  if (environment.cloudflare) {
+    return {
+      type: "cloudflare",
+      apiKey: "", // Not needed for direct binding access
+      binding: environment.cloudflare.binding,
+      image: environment.cloudflare.image || defaultImage,
+      namespace: environment.cloudflare.namespace,
+      instanceType: environment.cloudflare.instanceType,
+      maxInstances: environment.cloudflare.maxInstances,
+      sleepAfter: environment.cloudflare.sleepAfter,
+      workingDirectory: workingDirectory || "/var/vibe0",
+    };
+  }
+  
   if (environment.northflank) {
     return {
       type: "northflank",

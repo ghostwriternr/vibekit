@@ -17,6 +17,7 @@ export type {
   E2BConfig,
   DaytonaConfig,
   NorthflankConfig,
+  CloudflareConfig,
   EnvironmentConfig,
   GithubConfig,
   TelemetryConfig,
@@ -56,3 +57,6 @@ export type {
 // Telemetry exports
 export { TelemetryService } from "./services/telemetry";
 export type { TelemetryData } from "./services/telemetry";
+
+// Cloudflare Container exports
+export { VibkitContainer } from "./containers/vibekit-container";

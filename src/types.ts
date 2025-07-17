@@ -42,10 +42,20 @@ export type NorthflankConfig = {
   persistentVolumeStorage?: number;
 };
 
+export type CloudflareConfig = {
+  type: 'direct';
+  binding: string; // Durable Object binding name (e.g., "MY_CONTAINER")
+  namespace?: string;
+  instanceType?: 'dev' | 'basic' | 'standard';
+  maxInstances?: number;
+  sleepAfter?: string; // e.g., "10m", "30s", "1h"
+};
+
 export type EnvironmentConfig = {
   e2b?: E2BConfig;
   daytona?: DaytonaConfig;
   northflank?: NorthflankConfig;
+  cloudflare?: CloudflareConfig;
 };
 
 export type GithubConfig = {
@@ -265,16 +275,21 @@ export interface SandboxInstance {
 }
 
 export interface SandboxConfig {
-  type: "e2b" | "daytona" | "northflank";
+  type: "e2b" | "daytona" | "northflank" | "cloudflare";
   apiKey: string;
   templateId?: string; // for E2B
-  image?: string; // for Daytona
+  image?: string; // for Daytona/Cloudflare
   serverUrl?: string; // for Daytona
   projectId?: string; // for Northflank
   billingPlan?: string; // for Northflank
   persistentVolume?: string; // for Northflank
   persistentVolumeStorage?: number; // for Northflank
-  workingDirectory?: string; // for Nortflank
+  workingDirectory?: string; // for Northflank
+  binding?: string; // for Cloudflare
+  namespace?: string; // for Cloudflare
+  instanceType?: 'dev' | 'basic' | 'standard'; // for Cloudflare
+  maxInstances?: number; // for Cloudflare
+  sleepAfter?: string; // for Cloudflare
 }
 
 export interface SandboxProvider {

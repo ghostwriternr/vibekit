@@ -1,0 +1,44 @@
+name = "vibekit-cloudflare-example"
+main = "worker.ts"
+compatibility_date = "2024-01-01"
+
+# Account ID (replace with your account ID)
+# account_id = "your-account-id"
+
+# Container configuration
+[[containers]]
+name = "vibekit-containers"
+class_name = "VibkitContainer"
+# Update image path to your registry
+image = "registry.cloudflare.com/your-namespace/vibekit-claude:1.0"
+instance_type = "standard"
+max_instances = 10
+
+# Durable Object binding
+[[durable_objects.bindings]]
+name = "VIBEKIT_CONTAINER"
+class_name = "VibkitContainer"
+
+# Migrations for Durable Objects
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["VibkitContainer"]
+
+# Environment variables (set these in Cloudflare dashboard or wrangler secret)
+# [vars]
+# ENVIRONMENT = "production"
+
+# Secrets (use wrangler secret put <KEY>)
+# ANTHROPIC_API_KEY
+# OPENAI_API_KEY
+# GOOGLE_API_KEY
+# GITHUB_TOKEN
+
+# Observability for monitoring
+[observability]
+enabled = true
+
+# Optional: Custom domains
+# [[routes]]
+# pattern = "vibekit.example.com/*"
+# zone_name = "example.com"
