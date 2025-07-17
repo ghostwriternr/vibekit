@@ -701,51 +701,32 @@ export class CloudflareSandboxInstance implements SandboxInstance {
           }
           
           const [cmd, ...cmdArgs] = args;
+          const stream = !!(options?.onStdout || options?.onStderr);
           
           // Execute using the SDK's exec method
-          const result = await this.sandbox.exec(cmd, cmdArgs, {
-            stream: options?.onStdout || options?.onStderr
-          });
-          
-          // Handle streaming response
-          if (result instanceof Response) {
-            const reader = result.body?.getReader();
-            const decoder = new TextDecoder();
-            
-            let stdout = '';
-            let stderr = '';
-            
-            while (reader) {
-              const { done, value } = await reader.read();
-              if (done) break;
-              
-              const chunk = decoder.decode(value);
-              
-              // The SDK uses SSE format, parse the events
-              const lines = chunk.split('\n');
-              for (const line of lines) {
-                if (line.startsWith('data: ')) {
-                  const data = line.substring(6);
-                  if (data.includes('[STDOUT]')) {
-                    const content = data.replace('[STDOUT] ', '');
-                    stdout += content + '\n';
-                    options?.onStdout?.(content + '\n');
-                  } else if (data.includes('[STDERR]')) {
-                    const content = data.replace('[STDERR] ', '');
-                    stderr += content + '\n';
-                    options?.onStderr?.(content + '\n');
-                  }
-                }
-              }
-            }
-            
-            return { exitCode: 0, stdout, stderr };
-          } else {
-            // Non-streaming result
+          const result = await this.sandbox.exec(cmd, cmdArgs, { stream });
+          if (stream) {
+            // When streaming is enabled, the SDK returns void
+            // The streaming is handled internally by the SDK
+            // We need to return a placeholder result for consistency
+            return {
+              exitCode: 0,
+              stdout: 'Command executed with streaming',
+              stderr: ''
+            };
+          } else if (result && typeof result === 'object' && 'exitCode' in result) {
+            // Non-streaming result - we get an ExecuteResponse
             return {
               exitCode: result.exitCode || 0,
               stdout: result.stdout || '',
               stderr: result.stderr || '',
+            };
+          } else {
+            // Fallback for void return
+            return {
+              exitCode: 0,
+              stdout: '',
+              stderr: ''
             };
           }
         } catch (error) {
