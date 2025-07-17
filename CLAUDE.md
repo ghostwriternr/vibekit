@@ -605,3 +605,409 @@ Share feedback through the [Cloudflare Discord](https://discord.cloudflare.com) 
 - Containers are subject to standard Worker log limits and retention policies
 - Ensure Worker code is backwards compatible during deployments due to rolling updates
 - Currently no direct TCP/UDP access from end-users (Worker proxy required)
+
+---
+
+# Cloudflare Sandbox SDK Documentation
+
+## Overview
+
+The @cloudflare/sandbox SDK is an experimental library that provides a higher-level abstraction on top of Cloudflare Containers. It simplifies the process of running sandboxed code execution environments with built-in features like file operations, git integration, and session management.
+
+The SDK is designed for use cases where you need to:
+- Execute arbitrary code in a secure, isolated environment
+- Provide development environments or coding sandboxes
+- Run untrusted user code safely
+- Build AI coding assistants or code execution platforms
+
+## Installation
+
+```bash
+npm install @cloudflare/sandbox
+```
+
+## Architecture
+
+The Sandbox SDK builds on top of @cloudflare/containers with these key components:
+
+1. **Sandbox Class**: Extends the Container class with additional methods for code execution
+2. **Command Server**: Bun-based HTTP server running inside the container that handles execution requests
+3. **Session Management**: Built-in tracking of work sessions and command history
+4. **File Operations**: Convenient methods for file manipulation without exec
+5. **Git Integration**: Built-in support for cloning repositories
+
+## Basic Setup
+
+### 1. Create or Update Your Dockerfile
+
+```dockerfile
+# For amd64 architecture:
+FROM docker.io/ghostwriternr/cloudflare-sandbox:0.0.5
+
+# For arm64 architecture:
+# FROM docker.io/ghostwriternr/cloudflare-sandbox-arm:0.0.5
+
+EXPOSE 3000
+
+# The command server starts automatically
+CMD ["bun", "index.ts"]
+```
+
+### 2. Configure wrangler.json
+
+```jsonc
+{
+  "name": "my-sandbox-worker",
+  "containers": [
+    {
+      "class_name": "Sandbox",
+      "image": "./Dockerfile",
+      "max_instances": 10,
+      "instance_type": "standard"
+    }
+  ],
+  "durable_objects": {
+    "bindings": [
+      {
+        "class_name": "Sandbox",
+        "name": "Sandbox"
+      }
+    ]
+  },
+  "migrations": [
+    {
+      "new_sqlite_classes": ["Sandbox"],
+      "tag": "v1"
+    }
+  ]
+}
+```
+
+### 3. Export the Sandbox Class
+
+In your worker's main file:
+
+```typescript
+export { Sandbox } from "@cloudflare/sandbox";
+
+export default {
+  async fetch(request: Request, env: Env) {
+    // Your worker logic here
+  }
+};
+```
+
+## Using the Sandbox
+
+### Getting a Sandbox Instance
+
+```typescript
+import { getSandbox } from "@cloudflare/sandbox";
+
+export default {
+  async fetch(request: Request, env: Env) {
+    // Get or create a sandbox instance
+    const sandbox = getSandbox(env.Sandbox, "my-sandbox-id");
+    
+    // Use the sandbox...
+    const result = await sandbox.exec("echo", ["Hello, World!"]);
+    return new Response(result.stdout);
+  }
+};
+```
+
+## Available Methods
+
+### exec(command, args, options?)
+
+Execute a command in the sandbox.
+
+```typescript
+// Simple command execution
+const result = await sandbox.exec("ls", ["-la"]);
+console.log(result.stdout);
+console.log(result.stderr);
+console.log(result.exitCode);
+
+// With streaming output
+const streamResult = await sandbox.exec("npm", ["install"], { 
+  stream: true 
+});
+// Returns a Response object with streaming output
+```
+
+**Parameters:**
+- `command`: The command to execute
+- `args`: Array of command arguments
+- `options`: Optional object with:
+  - `stream`: Boolean to enable streaming output (returns Response instead of result object)
+
+### gitCheckout(repoUrl, options?)
+
+Clone a git repository into the sandbox.
+
+```typescript
+// Clone a repository
+await sandbox.gitCheckout("https://github.com/user/repo.git");
+
+// Clone a specific branch
+await sandbox.gitCheckout("https://github.com/user/repo.git", {
+  branch: "develop"
+});
+
+// Clone to a specific directory
+await sandbox.gitCheckout("https://github.com/user/repo.git", {
+  targetDir: "/workspace/my-project"
+});
+
+// With streaming output
+const response = await sandbox.gitCheckout("https://github.com/user/repo.git", {
+  stream: true
+});
+```
+
+**Parameters:**
+- `repoUrl`: The git repository URL
+- `options`: Optional object with:
+  - `branch`: Specific branch to checkout
+  - `targetDir`: Directory to clone into
+  - `stream`: Enable streaming output
+
+### File Operations
+
+#### writeFile(path, content, options?)
+
+Write content to a file in the sandbox.
+
+```typescript
+// Write text file
+await sandbox.writeFile("/app/config.json", JSON.stringify({ port: 3000 }));
+
+// With specific encoding
+await sandbox.writeFile("/app/script.sh", "#!/bin/bash\necho Hello", {
+  encoding: "utf-8"
+});
+```
+
+#### readFile(path, options?)
+
+Read content from a file in the sandbox.
+
+```typescript
+// Read a file
+const content = await sandbox.readFile("/app/config.json");
+console.log(content);
+
+// With specific encoding
+const script = await sandbox.readFile("/app/script.sh", {
+  encoding: "utf-8"
+});
+```
+
+#### mkdir(path, options?)
+
+Create a directory in the sandbox.
+
+```typescript
+// Create a single directory
+await sandbox.mkdir("/app/data");
+
+// Create nested directories
+await sandbox.mkdir("/app/data/cache/images", {
+  recursive: true
+});
+```
+
+#### deleteFile(path, options?)
+
+Delete a file from the sandbox.
+
+```typescript
+await sandbox.deleteFile("/app/temp.txt");
+
+// With streaming response
+const response = await sandbox.deleteFile("/app/temp.txt", {
+  stream: true
+});
+```
+
+#### renameFile(oldPath, newPath, options?)
+
+Rename a file in the sandbox.
+
+```typescript
+await sandbox.renameFile("/app/old-name.txt", "/app/new-name.txt");
+```
+
+#### moveFile(sourcePath, destinationPath, options?)
+
+Move a file from one location to another.
+
+```typescript
+await sandbox.moveFile("/tmp/upload.zip", "/app/data/upload.zip");
+```
+
+### ping()
+
+Check if the sandbox is responsive.
+
+```typescript
+const isAlive = await sandbox.ping();
+console.log(`Sandbox is ${isAlive ? 'responsive' : 'not responding'}`);
+```
+
+## Advanced Usage
+
+### Session Management
+
+The Sandbox SDK includes built-in session management capabilities that track command history and working state:
+
+```typescript
+// The sandbox maintains session state between commands
+const sandbox = getSandbox(env.Sandbox, "user-123-session");
+
+// Commands are executed in the same session context
+await sandbox.exec("cd", ["/workspace"]);
+await sandbox.exec("npm", ["init", "-y"]);
+await sandbox.exec("npm", ["install", "express"]);
+```
+
+### Custom Docker Images
+
+You can build custom images on top of the Sandbox SDK base image:
+
+```dockerfile
+FROM docker.io/ghostwriternr/cloudflare-sandbox:0.0.5
+
+# Install additional tools
+RUN apt-get update && apt-get install -y \
+    python3 \
+    python3-pip \
+    golang \
+    rust
+
+# Install global npm packages
+RUN npm install -g typescript @angular/cli vue-cli
+
+EXPOSE 3000
+
+CMD ["bun", "index.ts"]
+```
+
+### Integration with VibeKit
+
+For VibeKit integration, the Sandbox SDK can be used as a provider:
+
+```typescript
+import { Sandbox, getSandbox } from '@cloudflare/sandbox';
+
+export class CloudflareSandboxProvider implements SandboxProvider {
+  async create(config, envs, agentType) {
+    const env = (globalThis as any).env;
+    const sandboxId = `vibekit-${agentType}-${Date.now()}`;
+    const sandbox = getSandbox(env.Sandbox, sandboxId);
+    
+    return new CloudflareSandboxInstance(sandbox, sandboxId);
+  }
+}
+
+export class CloudflareSandboxInstance implements SandboxInstance {
+  constructor(private sandbox: Sandbox, public sandboxId: string) {}
+  
+  get commands(): SandboxCommands {
+    return {
+      run: async (command, options) => {
+        // Split command into command and args
+        const [cmd, ...args] = command.split(' ');
+        
+        const result = await this.sandbox.exec(cmd, args, {
+          stream: options?.onStdout || options?.onStderr
+        });
+        
+        return {
+          exitCode: result.exitCode || 0,
+          stdout: result.stdout || '',
+          stderr: result.stderr || ''
+        };
+      }
+    };
+  }
+}
+```
+
+## Streaming Responses
+
+Many SDK methods support streaming responses when `stream: true` is passed:
+
+```typescript
+// Streaming command output
+const response = await sandbox.exec("npm", ["install"], { stream: true });
+
+// The response is a standard Response object with streaming body
+const reader = response.body.getReader();
+const decoder = new TextDecoder();
+
+while (true) {
+  const { done, value } = await reader.read();
+  if (done) break;
+  
+  const chunk = decoder.decode(value);
+  console.log('Output:', chunk);
+}
+```
+
+## Error Handling
+
+```typescript
+try {
+  const result = await sandbox.exec("false", []);
+  // Command that exits with non-zero code
+  console.log("Exit code:", result.exitCode); // Will be non-zero
+} catch (error) {
+  console.error("Execution failed:", error);
+}
+
+// File operations
+try {
+  const content = await sandbox.readFile("/non-existent-file.txt");
+} catch (error) {
+  console.error("File not found:", error);
+}
+```
+
+## Best Practices
+
+1. **Sandbox Lifecycle**: Sandboxes are managed by Durable Objects and will automatically sleep after inactivity
+2. **Session Isolation**: Use unique sandbox IDs for different users or sessions
+3. **Resource Limits**: Be aware of container resource limits (CPU, memory, disk)
+4. **Security**: Never execute untrusted commands directly; always validate and sanitize input
+5. **Streaming**: Use streaming for long-running commands to provide real-time feedback
+
+## Differences from Direct Container Usage
+
+| Feature | @cloudflare/containers | @cloudflare/sandbox |
+|---------|----------------------|-------------------|
+| Setup Complexity | More manual setup | Simplified setup |
+| Command Execution | Via containerFetch | Built-in exec() method |
+| File Operations | Manual implementation | Built-in methods |
+| Git Support | Manual implementation | Built-in gitCheckout |
+| Session Management | Manual implementation | Built-in support |
+| Base Image | Any Linux image | Specific sandbox image |
+
+## Current Limitations
+
+- **Experimental**: The SDK is in active development and APIs may change
+- **Image Requirement**: Must use the provided base images or build on top of them
+- **No Direct Port Access**: Use exec to run servers, but port forwarding requires container-level configuration
+- **Limited to Bun Runtime**: The command server uses Bun (though executed commands can use any runtime)
+
+## Future Roadmap
+
+The Sandbox SDK is actively being developed with planned features including:
+- Native support for multiple programming languages
+- Enhanced session management and persistence
+- Built-in code editor integration
+- Improved debugging capabilities
+- Direct integration with AI models for code generation
+
+For the latest updates and to provide feedback, visit the [Cloudflare Sandbox GitHub repository](https://github.com/cloudflare/sandbox) or join the discussion in the [Cloudflare Discord](https://discord.cloudflare.com).

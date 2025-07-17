@@ -2,9 +2,9 @@
 
 ## Overview
 
-VibeKit now supports running coding agents on Cloudflare Containers, enabling you to leverage Cloudflare's global edge network for running Claude, Codex, Gemini, and OpenCode agents.
+VibeKit now supports running coding agents on Cloudflare Containers using the Cloudflare Sandbox SDK, enabling you to leverage Cloudflare's global edge network for running Claude, Codex, Gemini, and OpenCode agents.
 
-**Important**: This initial implementation requires your application to run on Cloudflare Workers. Support for running from any platform will be added in a future release.
+**Important**: This implementation requires your application to run on Cloudflare Workers. Support for running from any platform will be added in a future release.
 
 ## Prerequisites
 
@@ -15,10 +15,10 @@ VibeKit now supports running coding agents on Cloudflare Containers, enabling yo
 
 ## Setup Steps
 
-### 1. Install VibeKit
+### 1. Install VibeKit and Cloudflare Sandbox SDK
 
 ```bash
-npm install @vibe-kit/sdk
+npm install @vibe-kit/sdk @cloudflare/sandbox
 ```
 
 ### 2. Configure Your Worker
@@ -30,43 +30,39 @@ name = "my-vibekit-app"
 main = "src/index.ts"
 compatibility_date = "2024-01-01"
 
-# Container configuration
+# Container configuration using Sandbox SDK
 [[containers]]
-name = "vibekit-containers"
-class_name = "VibkitContainer"
+name = "vibekit-sandbox"
+class_name = "Sandbox"
 image = "./vibekit-container"  # Path to container image
 instance_type = "standard"
 max_instances = 10
 
 # Durable Object binding
 [[durable_objects.bindings]]
-name = "VIBEKIT_CONTAINER"
-class_name = "VibkitContainer"
+name = "Sandbox"
+class_name = "Sandbox"
 
 # Migration for Durable Objects
 [[migrations]]
 tag = "v1"
-new_sqlite_classes = ["VibkitContainer"]
+new_sqlite_classes = ["Sandbox"]
 
 # Enable observability (optional but recommended)
 [observability]
 enabled = true
 ```
 
-### 3. Set Up the Durable Object
+### 3. Set Up Your Worker
 
-Create `src/containers/vibekit-container.ts`:
-
-```typescript
-import { VibkitContainer } from '@vibe-kit/sdk/containers';
-
-export { VibkitContainer };
-```
-
-### 4. Configure VibeKit in Your Worker
+In your main worker file:
 
 ```typescript
 import { VibeKit } from '@vibe-kit/sdk';
+import { Sandbox } from '@cloudflare/sandbox';
+
+// Export the Sandbox Durable Object
+export { Sandbox };
 
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
@@ -81,7 +77,7 @@ export default {
       environment: {
         cloudflare: {
           type: 'direct',
-          binding: 'VIBEKIT_CONTAINER',  // Must match your wrangler.toml binding
+          binding: 'Sandbox',  // Must match your wrangler.toml binding
           instanceType: 'standard',
           sleepAfter: '10m'
         }
@@ -98,22 +94,11 @@ export default {
 };
 ```
 
-### 5. Build and Deploy Container Images
+### 4. Build and Deploy Container Images
 
-#### Option A: Use Pre-built Images
+The VibeKit container images are now based on the Cloudflare Sandbox SDK base image.
 
-VibeKit provides pre-built container images for each agent type:
-
-```bash
-# Pull and tag images for your account
-docker pull vibekit/claude:latest
-docker tag vibekit/claude:latest registry.cloudflare.com/<your-account>/vibekit-claude:1.0
-
-# Push to Cloudflare registry
-wrangler containers push registry.cloudflare.com/<your-account>/vibekit-claude:1.0
-```
-
-#### Option B: Build Custom Images
+#### Build Custom Images
 
 1. Navigate to the dockerfiles directory:
    ```bash
@@ -127,11 +112,13 @@ wrangler containers push registry.cloudflare.com/<your-account>/vibekit-claude:1
 
 3. Push images to Cloudflare:
    ```bash
-   wrangler containers push registry.cloudflare.com/<your-namespace>/vibekit-claude:1.0
-   wrangler containers push registry.cloudflare.com/<your-namespace>/vibekit-codex:1.0
-   wrangler containers push registry.cloudflare.com/<your-namespace>/vibekit-gemini:1.0
-   wrangler containers push registry.cloudflare.com/<your-namespace>/vibekit-opencode:1.0
+   wrangler containers push registry.cloudflare.com/<your-namespace>/vibekit-claude:2.0-sdk
+   wrangler containers push registry.cloudflare.com/<your-namespace>/vibekit-codex:2.0-sdk
+   wrangler containers push registry.cloudflare.com/<your-namespace>/vibekit-gemini:2.0-sdk
+   wrangler containers push registry.cloudflare.com/<your-namespace>/vibekit-opencode:2.0-sdk
    ```
+
+**Note**: These images use the Cloudflare Sandbox SDK's base image (`docker.io/ghostwriternr/cloudflare-sandbox:0.0.5`) which includes a Bun-based command server.
 
 ### 6. Deploy Your Worker
 
@@ -166,21 +153,22 @@ interface CloudflareConfig {
 
 ```typescript
 import { VibeKit } from '@vibe-kit/sdk';
-import { VibkitContainer } from '@vibe-kit/sdk/containers';
+import { Sandbox } from '@cloudflare/sandbox';
 
-export { VibkitContainer };
+export { Sandbox };
 
 interface Env {
-  VIBEKIT_CONTAINER: DurableObjectNamespace;
+  Sandbox: DurableObjectNamespace;
   ANTHROPIC_API_KEY: string;
   OPENAI_API_KEY: string;
+  GITHUB_TOKEN?: string;
 }
 
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
     const url = new URL(request.url);
     
-    // Initialize VibeKit with Cloudflare Containers
+    // Initialize VibeKit with Cloudflare Sandbox SDK
     const vibekit = new VibeKit({
       agent: {
         type: url.searchParams.get('agent') as any || 'claude',
@@ -192,7 +180,7 @@ export default {
       environment: {
         cloudflare: {
           type: 'direct',
-          binding: 'VIBEKIT_CONTAINER',
+          binding: 'Sandbox',
           instanceType: 'standard',
           sleepAfter: '10m'
         }
@@ -305,9 +293,10 @@ Visit the [Cloudflare Dashboard](https://dash.cloudflare.com) and navigate to Wo
 
 ### Command Execution Fails
 
-- Verify the command server is running (port 8080)
+- Verify the Sandbox SDK command server is running (port 3000)
 - Check container logs in the dashboard
 - Ensure sufficient resources (upgrade instance type if needed)
+- The SDK uses Bun runtime for the command server
 
 ### Binding Not Found Error
 

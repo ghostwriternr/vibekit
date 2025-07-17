@@ -1,12 +1,12 @@
 # VibeKit Cloudflare Worker Example
 
-This example demonstrates how to use VibeKit with Cloudflare Containers to run coding agents on Cloudflare's edge network.
+This example demonstrates how to use VibeKit with Cloudflare Containers via the Cloudflare Sandbox SDK to run coding agents on Cloudflare's edge network.
 
 ## Setup
 
 1. **Install dependencies:**
    ```bash
-   npm install @vibe-kit/sdk
+   npm install @vibe-kit/sdk @cloudflare/sandbox
    ```
 
 2. **Configure your account ID:**
@@ -29,8 +29,8 @@ This example demonstrates how to use VibeKit with Cloudflare Containers to run c
    cd assets/dockerfiles/cloudflare
    ./build-images.sh
    
-   # Push to your registry
-   wrangler containers push registry.cloudflare.com/your-namespace/vibekit-claude:1.0
+   # Push to your registry (using SDK-based images)
+   wrangler containers push registry.cloudflare.com/your-namespace/vibekit-claude:2.0-sdk
    ```
 
 5. **Deploy the Worker:**

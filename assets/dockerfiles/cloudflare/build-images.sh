@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Build script for Cloudflare container images
+# Build script for Cloudflare container images using Sandbox SDK
 
 set -e
 
@@ -13,9 +13,9 @@ NC='\033[0m' # No Color
 # Configuration
 REGISTRY=${REGISTRY:-"registry.cloudflare.com"}
 NAMESPACE=${NAMESPACE:-"vibekit"}
-TAG=${TAG:-"1.0"}
+TAG=${TAG:-"2.0-sdk"}
 
-echo -e "${YELLOW}Building VibeKit Cloudflare container images...${NC}"
+echo -e "${YELLOW}Building VibeKit Cloudflare container images with Sandbox SDK...${NC}"
 
 # Get the directory of this script
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
@@ -27,16 +27,9 @@ for agent in claude codex gemini opencode; do
     # Navigate to agent directory
     cd "$SCRIPT_DIR/$agent"
     
-    # Copy command server files temporarily
-    cp "$SCRIPT_DIR/../../command-server/server.js" ./
-    cp "$SCRIPT_DIR/../../command-server/package.json" ./
-    
-    # Build the image
+    # Build the image (no need to copy command server files - SDK provides it)
     IMAGE_NAME="$REGISTRY/$NAMESPACE/vibekit-$agent:$TAG"
     docker build -t "$IMAGE_NAME" .
-    
-    # Clean up copied files
-    rm -f server.js package.json
     
     echo -e "${GREEN}✓ Built $IMAGE_NAME${NC}"
 done

@@ -35,6 +35,7 @@
         "@ai-sdk/anthropic": "^1.2.12",
         "@ai-sdk/openai": "^1.3.22",
         "@ai-sdk/openai-compatible": "^0.2.14",
+        "@cloudflare/sandbox": "^0.0.8",
         "@daytonaio/sdk": "^0.22.1",
         "@e2b/code-interpreter": "1.2.0-beta.4",
         "@northflank/js-client": "^0.8.2",

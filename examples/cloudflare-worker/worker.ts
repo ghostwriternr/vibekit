@@ -1,13 +1,13 @@
 import { VibeKit } from '@vibe-kit/sdk';
-import { VibkitContainer } from '@vibe-kit/sdk/containers';
+import { Sandbox } from '@cloudflare/sandbox';
 
-// Export the Durable Object
-export { VibkitContainer };
+// Export the Sandbox Durable Object
+export { Sandbox };
 
 // Environment interface
 interface Env {
   // Durable Object binding
-  VIBEKIT_CONTAINER: DurableObjectNamespace;
+  Sandbox: DurableObjectNamespace;
   
   // API Keys
   ANTHROPIC_API_KEY: string;
@@ -88,7 +88,7 @@ export default {
           environment: {
             cloudflare: {
               type: 'direct',
-              binding: 'VIBEKIT_CONTAINER',
+              binding: 'Sandbox',
               instanceType: 'standard',
               sleepAfter: '10m'
             }

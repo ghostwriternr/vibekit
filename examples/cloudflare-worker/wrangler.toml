@@ -7,22 +7,22 @@ compatibility_date = "2024-01-01"
 
 # Container configuration
 [[containers]]
-name = "vibekit-containers"
-class_name = "VibkitContainer"
-# Update image path to your registry
-image = "registry.cloudflare.com/your-namespace/vibekit-claude:1.0"
+name = "vibekit-sandbox"
+class_name = "Sandbox"
+# Update image path to your registry (using SDK-based images)
+image = "registry.cloudflare.com/your-namespace/vibekit-claude:2.0-sdk"
 instance_type = "standard"
 max_instances = 10
 
 # Durable Object binding
 [[durable_objects.bindings]]
-name = "VIBEKIT_CONTAINER"
-class_name = "VibkitContainer"
+name = "Sandbox"
+class_name = "Sandbox"
 
 # Migrations for Durable Objects
 [[migrations]]
-tag = "v1"
-new_sqlite_classes = ["VibkitContainer"]
+tag = "v2"
+new_sqlite_classes = ["Sandbox"]
 
 # Environment variables (set these in Cloudflare dashboard or wrangler secret)
 # [vars]
