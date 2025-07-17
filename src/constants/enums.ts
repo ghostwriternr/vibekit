@@ -1,8 +1,7 @@
 // Provider enums
 export enum SANDBOX_PROVIDERS {
   E2B = 'E2B',
-  DAYTONA = 'Daytona',
-  CLOUDFLARE = 'Cloudflare'
+  DAYTONA = 'Daytona'
 }
 
 // Agent configurations with display names and descriptions
