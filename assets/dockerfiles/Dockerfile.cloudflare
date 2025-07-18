@@ -1,0 +1,25 @@
+# Unified Cloudflare Dockerfile for all VibeKit agents
+FROM docker.io/ghostwriternr/cloudflare-sandbox:0.0.9
+
+# Build arguments
+ARG AGENT_TYPE=claude
+ARG NODE_VERSION=20
+
+# Copy and run the common installation script
+COPY install-agent.sh /tmp/install-agent.sh
+RUN chmod +x /tmp/install-agent.sh && \
+    /tmp/install-agent.sh ${AGENT_TYPE} ${NODE_VERSION} && \
+    rm /tmp/install-agent.sh
+
+# Create working directory
+RUN mkdir -p /var/vibe0
+WORKDIR /var/vibe0
+
+# Set environment variables
+ENV WORKING_DIRECTORY=/var/vibe0
+
+# Expose SDK command server port
+EXPOSE 3000
+
+# The SDK's command server starts automatically
+CMD ["bun", "index.ts"]

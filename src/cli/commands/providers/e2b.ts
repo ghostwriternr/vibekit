@@ -20,7 +20,7 @@ export async function installE2B(config: InstallConfig, selectedTemplates?: stri
       '--dockerfile', tempDockerfile
     ],
     needsTempFile: false,
-    dockerfilePathPrefix: 'images/Dockerfile.',
+    dockerfilePathPrefix: 'assets/dockerfiles/Dockerfile.',
     config,
     selectedTemplates
   });

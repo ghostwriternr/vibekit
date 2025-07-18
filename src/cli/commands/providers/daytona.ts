@@ -21,7 +21,7 @@ export async function installDaytona(config: InstallConfig, selectedTemplates?: 
       '--dockerfile', tempDockerfile
     ],
     needsTempFile: true,
-    dockerfilePathPrefix: 'images/Dockerfile.',
+    dockerfilePathPrefix: 'assets/dockerfiles/Dockerfile.',
     config,
     selectedTemplates
   });

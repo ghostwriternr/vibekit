@@ -1,5 +1,6 @@
 import { Sandbox as E2BSandbox } from "@e2b/code-interpreter";
 import { Daytona, DaytonaConfig, Sandbox } from "@daytonaio/sdk";
+import { Sandbox as CloudflareSandbox, getSandbox } from '@cloudflare/sandbox';
 
 import {
   AgentType,
@@ -647,9 +648,102 @@ export class NorthflankSandboxProvider implements SandboxProvider {
   }
 }
 
+// Cloudflare implementation using Sandbox SDK
+export class CloudflareSandboxInstance implements SandboxInstance {
+  constructor(
+    private sandbox: CloudflareSandbox, // Sandbox SDK instance
+    public sandboxId: string
+  ) {}
+
+  get commands(): SandboxCommands {
+    return {
+      run: async (command: string, options?: SandboxCommandOptions) => {
+        const result = await this.sandbox.exec(command, [], {});
+        if (!result) {
+          return {
+            exitCode: 0,
+            stdout: "",
+            stderr: "",
+          };
+        }
+
+        return result;
+      },
+    };
+  }
+
+  async kill(): Promise<void> {
+    // This is a no-op as the container will be killed by the worker
+  }
+
+  async pause(): Promise<void> {
+    // This is a no-op as the container will be paused by the worker
+  }
+
+  async getHost(port: number): Promise<string> {
+    const response = await this.sandbox.exposePort(port);
+    return response.url;
+  }
+}
+
+export class CloudflareSandboxProvider implements SandboxProvider {
+  async create(
+    config: SandboxConfig,
+    envs?: Record<string, string>,
+    agentType?: AgentType
+  ): Promise<SandboxInstance> {
+    if (!config.binding) {
+      throw new Error("Cloudflare sandbox configuration missing binding name");
+    }
+
+    // Access the Durable Object binding from the Worker environment
+    // This assumes the provider is running within a Cloudflare Worker
+    const env = (globalThis as any).env;
+    if (!env || !env[config.binding]) {
+      throw new Error(
+        `Cloudflare Durable Object binding "${config.binding}" not found. ` +
+        `Make sure you're running within a Cloudflare Worker and the binding is configured in wrangler.toml`
+      );
+    }
+
+    // Generate a unique sandbox ID
+    const sandboxId = `vibekit-${agentType || 'default'}-${Date.now()}`;
+    
+    // Get or create a sandbox instance using the SDK
+    const sandbox = getSandbox(env[config.binding], sandboxId);
+
+    // The SDK handles container initialization internally
+    // We can set environment variables via the Sandbox class properties if needed
+    
+    return new CloudflareSandboxInstance(sandbox, sandboxId);
+  }
+
+  async resume(
+    sandboxId: string,
+    config: SandboxConfig
+  ): Promise<SandboxInstance> {
+    if (!config.binding) {
+      throw new Error("Cloudflare sandbox configuration missing binding name");
+    }
+
+    const env = (globalThis as any).env;
+    if (!env || !env[config.binding]) {
+      throw new Error(
+        `Cloudflare Durable Object binding "${config.binding}" not found`
+      );
+    }
+
+    // Get existing sandbox instance using the SDK
+    const sandbox = getSandbox(env[config.binding], sandboxId);
+
+    // The SDK will automatically resume the existing container
+    return new CloudflareSandboxInstance(sandbox, sandboxId);
+  }
+}
+
 // Factory function to create appropriate sandbox provider
 export function createSandboxProvider(
-  type: "e2b" | "daytona" | "northflank"
+  type: "e2b" | "daytona" | "northflank" | "cloudflare"
 ): SandboxProvider {
   switch (type) {
     case "e2b":
@@ -658,6 +752,8 @@ export function createSandboxProvider(
       return new DaytonaSandboxProvider();
     case "northflank":
       return new NorthflankSandboxProvider();
+    case "cloudflare":
+      return new CloudflareSandboxProvider();
     default:
       throw new Error(`Unsupported sandbox type: ${type}`);
   }
@@ -670,6 +766,22 @@ export function createSandboxConfigFromEnvironment(
   workingDirectory?: string
 ): SandboxConfig {
   const defaultImage = getDockerImageFromAgentType(agentType);
+  
+  // Try Cloudflare first if configured
+  if (environment.cloudflare) {
+    return {
+      type: "cloudflare",
+      apiKey: "", // Not needed for direct binding access
+      binding: environment.cloudflare.binding,
+      image: environment.cloudflare.image || defaultImage,
+      namespace: environment.cloudflare.namespace,
+      instanceType: environment.cloudflare.instanceType,
+      maxInstances: environment.cloudflare.maxInstances,
+      sleepAfter: environment.cloudflare.sleepAfter,
+      workingDirectory: workingDirectory || "/var/vibe0",
+    };
+  }
+  
   if (environment.northflank) {
     return {
       type: "northflank",
