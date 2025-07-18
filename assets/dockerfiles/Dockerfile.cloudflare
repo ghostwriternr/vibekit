@@ -1,5 +1,5 @@
 # Unified Cloudflare Dockerfile for all VibeKit agents
-FROM docker.io/ghostwriternr/cloudflare-sandbox:0.0.5
+FROM docker.io/ghostwriternr/cloudflare-sandbox:0.0.9
 
 # Build arguments
 ARG AGENT_TYPE=claude

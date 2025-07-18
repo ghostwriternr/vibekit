@@ -118,7 +118,7 @@ The VibeKit container images are now based on the Cloudflare Sandbox SDK base im
    wrangler containers push registry.cloudflare.com/<your-namespace>/vibekit-opencode:2.0-sdk
    ```
 
-**Note**: These images use the Cloudflare Sandbox SDK's base image (`docker.io/ghostwriternr/cloudflare-sandbox:0.0.5`) which includes a Bun-based command server.
+**Note**: These images use the Cloudflare Sandbox SDK's base image (`docker.io/ghostwriternr/cloudflare-sandbox:0.0.9`) which includes a Bun-based command server.
 
 ### 6. Deploy Your Worker
 

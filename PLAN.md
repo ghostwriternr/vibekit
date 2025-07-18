@@ -9,7 +9,7 @@
 - ✅ Support for all agent types (Claude, Codex, Gemini, OpenCode)
 - ✅ Command execution with streaming output via SDK's exec() method
 - ✅ Container lifecycle management through Durable Objects
-- ✅ Docker images based on SDK's base image (ghostwriternr/cloudflare-sandbox:0.0.5)
+- ✅ Docker images based on SDK's base image (ghostwriternr/cloudflare-sandbox:0.0.9)
 - ✅ Comprehensive documentation and examples
 - ✅ Migration from direct containers to SDK approach
 - ⏳ Unit tests pending
@@ -103,7 +103,7 @@ The Cloudflare Sandbox SDK provides exactly what VibeKit needs:
 - Automatic container lifecycle management
 
 #### Container Images
-- Base all agent images on SDK's Docker image (ghostwriternr/cloudflare-sandbox:0.0.5)
+- Base all agent images on SDK's Docker image (ghostwriternr/cloudflare-sandbox:0.0.9)
 - Install agent-specific tools on top of SDK base
 - No need for custom command server - SDK provides it
 - Images pushed to Cloudflare's registry
@@ -288,7 +288,7 @@ GET    /containers/:id/ports/:port    # Access container port
 #### Week 2: Docker Images & Configuration ✅
 
 ##### 2.1 Docker Image Migration
-- [x] Updated all Dockerfiles to use SDK base image (ghostwriternr/cloudflare-sandbox:0.0.5)
+- [x] Updated all Dockerfiles to use SDK base image (ghostwriternr/cloudflare-sandbox:0.0.9)
 - [x] Removed custom command server COPY instructions
 - [x] Changed port from 8080 to 3000 (SDK default)
 - [x] Updated CMD to use Bun runtime

@@ -642,10 +642,10 @@ The Sandbox SDK builds on top of @cloudflare/containers with these key component
 
 ```dockerfile
 # For amd64 architecture:
-FROM docker.io/ghostwriternr/cloudflare-sandbox:0.0.5
+FROM docker.io/ghostwriternr/cloudflare-sandbox:0.0.9
 
 # For arm64 architecture:
-# FROM docker.io/ghostwriternr/cloudflare-sandbox-arm:0.0.5
+# FROM docker.io/ghostwriternr/cloudflare-sandbox-arm:0.0.9
 
 EXPOSE 3000
 
@@ -877,7 +877,7 @@ await sandbox.exec("npm", ["install", "express"]);
 You can build custom images on top of the Sandbox SDK base image:
 
 ```dockerfile
-FROM docker.io/ghostwriternr/cloudflare-sandbox:0.0.5
+FROM docker.io/ghostwriternr/cloudflare-sandbox:0.0.9
 
 # Install additional tools
 RUN apt-get update && apt-get install -y \

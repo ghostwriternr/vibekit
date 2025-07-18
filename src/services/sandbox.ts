@@ -658,103 +658,31 @@ export class CloudflareSandboxInstance implements SandboxInstance {
   get commands(): SandboxCommands {
     return {
       run: async (command: string, options?: SandboxCommandOptions) => {
-        try {
-          // Split command into command and args for exec()
-          // Handle quoted arguments properly
-          const args: string[] = [];
-          let current = '';
-          let inQuotes = false;
-          let escapeNext = false;
-          
-          for (let i = 0; i < command.length; i++) {
-            const char = command[i];
-            
-            if (escapeNext) {
-              current += char;
-              escapeNext = false;
-              continue;
-            }
-            
-            if (char === '\\') {
-              escapeNext = true;
-              continue;
-            }
-            
-            if (char === '"' || char === "'") {
-              inQuotes = !inQuotes;
-              continue;
-            }
-            
-            if (char === ' ' && !inQuotes) {
-              if (current) {
-                args.push(current);
-                current = '';
-              }
-              continue;
-            }
-            
-            current += char;
-          }
-          
-          if (current) {
-            args.push(current);
-          }
-          
-          const [cmd, ...cmdArgs] = args;
-          const stream = !!(options?.onStdout || options?.onStderr);
-          
-          // Execute using the SDK's exec method
-          const result = await this.sandbox.exec(cmd, cmdArgs, { stream });
-          if (stream) {
-            // When streaming is enabled, the SDK returns void
-            // The streaming is handled internally by the SDK
-            // We need to return a placeholder result for consistency
-            return {
-              exitCode: 0,
-              stdout: 'Command executed with streaming',
-              stderr: ''
-            };
-          } else if (result && typeof result === 'object' && 'exitCode' in result) {
-            // Non-streaming result - we get an ExecuteResponse
-            return {
-              exitCode: result.exitCode || 0,
-              stdout: result.stdout || '',
-              stderr: result.stderr || '',
-            };
-          } else {
-            // Fallback for void return
-            return {
-              exitCode: 0,
-              stdout: '',
-              stderr: ''
-            };
-          }
-        } catch (error) {
-          throw new Error(
-            `Failed to execute command: ${
-              error instanceof Error ? error.message : String(error)
-            }`
-          );
+        const result = await this.sandbox.exec(command, [], {});
+        if (!result) {
+          return {
+            exitCode: 0,
+            stdout: "",
+            stderr: "",
+          };
         }
+
+        return result;
       },
     };
   }
 
   async kill(): Promise<void> {
-    // The SDK doesn't expose kill directly, but we can stop via the container context
-    // This would need to be handled at the Durable Object level
-    throw new Error('Kill operation not directly supported by Sandbox SDK');
+    // This is a no-op as the container will be killed by the worker
   }
 
   async pause(): Promise<void> {
-    // The SDK doesn't expose pause directly
-    throw new Error('Pause operation not directly supported by Sandbox SDK');
+    // This is a no-op as the container will be paused by the worker
   }
 
   async getHost(port: number): Promise<string> {
-    // Port forwarding needs to be handled differently with the SDK
-    // The SDK doesn't expose direct port access, so we return a placeholder
-    return `http://sandbox-${this.sandboxId}:${port}`;
+    const response = await this.sandbox.exposePort(port);
+    return response.url;
   }
 }
 
